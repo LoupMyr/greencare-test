@@ -6,9 +6,6 @@ import com.example.greencare.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -36,8 +33,32 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Utilisateur utilisateur) {
-        // TODO: À compléter par l'étudiant
-        return null;
+        try {
+            // 1. Vérifier si l'utilisateur existe déjà
+            if (userService.existsByEmail(utilisateur.getEmail())) {
+                return ResponseEntity.badRequest().body("Utilisateur déjà existant");
+            }
+
+            // 3. Vérifier si l'utilisateur a un rôle, sinon définir "USER" par défaut
+            if (utilisateur.getRole() == null || utilisateur.getRole().isEmpty()) {
+                utilisateur.setRole("USER");
+            }
+
+            // 4. Créer l'utilisateur
+            Utilisateur createdUser = userService.create(utilisateur);
+
+            // 5. Générer un token JWT
+            String token = authService.generateToken(createdUser.getEmail());
+
+            // 6. Retourner une réponse avec le token et l'utilisateur
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("token", token);
+            response.put("utilisateur", createdUser);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // 7. Gérer les erreurs
+            return ResponseEntity.status(500).body("Erreur lors de l'inscription : " + e.getMessage());
+        }
     }
     
     /**
@@ -52,7 +73,24 @@ public class AuthController {
     
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Utilisateur loginData) {
-        // TODO: À compléter par l'étudiant
-        return null;
+        try {
+            // 1. Vérifier les identifiants
+            java.util.Optional<Utilisateur> userOpt = userService.verifyLogin(loginData.getEmail(), loginData.getMotDePasse());
+            if (userOpt.isPresent()) {
+                Utilisateur user = userOpt.get();
+                // 2. Générer un token JWT
+                String token = authService.generateToken(user.getEmail());
+                // 3. Retourner une réponse avec le token et l'utilisateur
+                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                response.put("token", token);
+                response.put("utilisateur", user);
+                return ResponseEntity.ok(response);
+            } else {
+                // 4. Sinon, retourner une erreur
+                return ResponseEntity.status(401).body("Email ou mot de passe incorrect");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Erreur lors de la connexion : " + e.getMessage());
+        }
     }
 } 
